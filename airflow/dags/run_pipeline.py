@@ -4,7 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 import datetime
 
-DAG_ID = 'test'
+DAG_ID = 'valeevar_hw'
 
 
 def get_config_value(task_id: str, key: str):

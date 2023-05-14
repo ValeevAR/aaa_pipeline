@@ -13,10 +13,11 @@ from sklearn import datasets
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.linear_model import SGDClassifier, LogisticRegression
 import mlflow
 
 mlflow.set_tracking_uri('http://158.160.11.51:90/')
-mlflow.set_experiment('aaa_test_size_exp')
+mlflow.set_experiment('valeevar_hw')
 
 RANDOM_SEED = 1
 
@@ -30,6 +31,13 @@ METRICS = {
 }
 
 
+MODELS = {
+    'DecisionTreeClassifier': DecisionTreeClassifier(),
+    'SGDClassifier': SGDClassifier(),
+    'LogisticRegression': LogisticRegression(),
+}
+
+
 def save_dict(data: dict, filename: str):
     with open(filename, 'w') as f:
         json.dump(data, f)
@@ -40,65 +48,75 @@ def load_dict(filename: str):
         return json.load(f)
 
 
-def train_model(x, y):
-    model = DecisionTreeClassifier()
+def train_model(x, y, model):
+    # model = DecisionTreeClassifier()
     model.fit(x, y)
     return model
 
 
 def train():
-    with open('params.yaml', 'rb') as f:
+    with open('../params.yaml', 'r') as f:
         params_data = yaml.safe_load(f)
 
     config = params_data['train']
 
     iris = datasets.load_iris()
-    task_dir = 'data/train'
+    task_dir = '../data/train'
 
     x = iris['data'].tolist()
     y = iris['target'].tolist()
 
     train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=config['test_size'])
 
-    model = train_model(train_x, train_y)
+    for model_name in params_data['train']['model']:
 
-    preds = model.predict(x)
+        with mlflow.start_run() as run:
+            model1 = MODELS[model_name]
 
-    metrics = {}
-    for metric_name in params_data['eval']['metrics']:
-        metrics[metric_name] = METRICS[metric_name](y, preds)
+            model = train_model(train_x, train_y, model1)
 
-    save_data = {
-        'train_x': train_x,
-        'test_x': test_x,
-        'train_y': train_y,
-        'test_y': test_y,
-    }
+            preds = model.predict(x)
 
-    if not os.path.exists(task_dir):
-        os.mkdir(task_dir)
+            metrics = {}
+            for metric_name in params_data['eval']['metrics']:
+                metrics[metric_name] = METRICS[metric_name](y, preds)
 
-    save_dict(save_data, os.path.join(task_dir, 'data.json'))
-    save_dict(metrics, os.path.join(task_dir, 'metrics.json'))
+            save_data = {
+                'train_x': train_x,
+                'test_x': test_x,
+                'train_y': train_y,
+                'test_y': test_y,
+            }
 
-    sns.heatmap(pd.DataFrame(train_x).corr())
+            if not os.path.exists(task_dir):
+                os.mkdir(task_dir)
 
-    plt.savefig('data/train/heatmap.png')
+            save_dict(save_data, os.path.join(task_dir, 'data.json'))
+            save_dict(metrics, os.path.join(task_dir, 'metrics.json'))
 
-    with open('data/train/model.pkl', 'wb') as f:
-        pickle.dump(model, f)
+            sns.heatmap(pd.DataFrame(train_x).corr())
 
-    params = {}
-    for i in params_data.values():
-        params.update(i)
 
-    params['run_type'] = 'train'
+            params = {}
 
-    print(f'train params - {params}')
-    print(f'train metrics - {metrics}')
+            for i in params_data.values():
+                params.update(i)
 
-    mlflow.log_params(params)
-    mlflow.log_metrics(metrics)
+            params['model'] = model_name
+
+            params['run_type'] = 'train'
+
+            print(f'train params - {params}')
+            print(f'train metrics - {metrics}')
+
+            pic_name = '_'.join([str(i) for i in params.values()])
+            plt.savefig(f'../data/train/heatmap_{pic_name}.png')
+
+            with open('../data/train/model.pkl', 'wb') as f:
+                pickle.dump(model, f)
+
+            mlflow.log_params(params)
+            mlflow.log_metrics(metrics)
 
 
 if __name__ == '__main__':

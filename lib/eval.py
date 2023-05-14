@@ -10,18 +10,18 @@ import mlflow
 from lib.train import load_dict, save_dict, METRICS
 
 def eval():
-    with open('params.yaml', 'r') as f:
+    with open('../params.yaml', 'r') as f:
         params_data = yaml.safe_load(f)
 
     config = params_data['eval']
-    with open('data/train/model.pkl', 'rb') as f:
+    with open('../data/train/model.pkl', 'rb') as f:
         model = pickle.load(f)
 
-    data = load_dict('data/train/data.json')
+    data = load_dict('../data/train/data.json')
     preds = model.predict(data['test_x'])
 
-    if not os.path.exists('data/eval'):
-        os.mkdir('data/eval')
+    if not os.path.exists('../data/eval'):
+        os.mkdir('../data/eval')
 
     metrics = {}
     for metric_name in config['metrics']:
